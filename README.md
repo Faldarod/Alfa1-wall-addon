@@ -34,3 +34,5 @@ Later extensions will be:
   - Can run with ollama locally
 - React on Home-assistant events/changes of sensors
 - Multi lingual support 
+
+There are multiple components needed. See de files in de `/components` folder

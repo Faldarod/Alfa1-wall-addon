@@ -1,0 +1,15 @@
+C:\work\group9\Alfa1-wall-addon\wled-simulator\src\main\java\nl\alfaone\wledsimulatorspring\config\WebSocketConfig.java
+C:\work\group9\Alfa1-wall-addon\wled-simulator\src\main\java\nl\alfaone\wledsimulatorspring\controller\ConfigApiController.java
+C:\work\group9\Alfa1-wall-addon\wled-simulator\src\main\java\nl\alfaone\wledsimulatorspring\controller\ViewController.java
+C:\work\group9\Alfa1-wall-addon\wled-simulator\src\main\java\nl\alfaone\wledsimulatorspring\controller\WledController.java
+C:\work\group9\Alfa1-wall-addon\wled-simulator\src\main\java\nl\alfaone\wledsimulatorspring\controller\WledRootController.java
+C:\work\group9\Alfa1-wall-addon\wled-simulator\src\main\java\nl\alfaone\wledsimulatorspring\domain\Led.java
+C:\work\group9\Alfa1-wall-addon\wled-simulator\src\main\java\nl\alfaone\wledsimulatorspring\domain\LedState.java
+C:\work\group9\Alfa1-wall-addon\wled-simulator\src\main\java\nl\alfaone\wledsimulatorspring\domain\Segment.java
+C:\work\group9\Alfa1-wall-addon\wled-simulator\src\main\java\nl\alfaone\wledsimulatorspring\domain\State.java
+C:\work\group9\Alfa1-wall-addon\wled-simulator\src\main\java\nl\alfaone\wledsimulatorspring\domain\WledInfo.java
+C:\work\group9\Alfa1-wall-addon\wled-simulator\src\main\java\nl\alfaone\wledsimulatorspring\domain\WledState.java
+C:\work\group9\Alfa1-wall-addon\wled-simulator\src\main\java\nl\alfaone\wledsimulatorspring\service\MdnsService.java
+C:\work\group9\Alfa1-wall-addon\wled-simulator\src\main\java\nl\alfaone\wledsimulatorspring\service\WledService.java
+C:\work\group9\Alfa1-wall-addon\wled-simulator\src\main\java\nl\alfaone\wledsimulatorspring\websocket\WledWebSocketHandler.java
+C:\work\group9\Alfa1-wall-addon\wled-simulator\src\main\java\nl\alfaone\wledsimulatorspring\WledSimulatorSpringApplication.java

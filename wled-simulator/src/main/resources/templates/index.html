@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>WLED Simulator - [[${info.name}]]</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .device-info {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-label {
+            font-weight: 600;
+            opacity: 0.8;
+        }
+
+        .nav {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .nav a {
+            display: inline-block;
+            padding: 10px 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 25px;
+            color: #fff;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .nav a:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .power-status {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .power-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .power-on {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+
+        .power-off {
+            background: linear-gradient(135deg, #636363 0%, #a2ab58 100%);
+        }
+
+        .segment-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .segment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .segment-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .segment-info {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .segment-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .status-on {
+            background: rgba(56, 239, 125, 0.3);
+            border: 1px solid #38ef7d;
+        }
+
+        .status-off {
+            background: rgba(100, 100, 100, 0.3);
+            border: 1px solid #888;
+        }
+
+        .led-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .led {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .led:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        .led::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            opacity: 0.5;
+            filter: blur(8px);
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            opacity: 0.7;
+            font-size: 0.9rem;
+        }
+
+        .last-update {
+            margin-top: 10px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 th:text="${info.name}">WLED Simulator</h1>
+            <div class="device-info">
+                <div class="info-item">
+                    <span class="info-label">Version:</span>
+                    <span th:text="${info.version}">0.14.1</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Total LEDs:</span>
+                    <span th:text="${info.leds.count}">30</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Segments:</span>
+                    <span th:text="${state.segments.size()}">1</span>
+                </div>
+            </div>
+        </header>
+
+        <nav class="nav">
+            <a href="/config">⚙️ Configuration</a>
+        </nav>
+
+        <div class="power-status">
+            <span class="power-badge" th:classappend="${state.on ? 'power-on' : 'power-off'}"
+                  th:text="${state.on ? '● ON' : '○ OFF'}">
+                ● ON
+            </span>
+            <span style="margin-left: 15px; opacity: 0.8;">
+                Brightness: <span th:text="${state.brightness}">128</span>/255
+            </span>
+        </div>
+
+        <div th:each="segment : ${state.segments}" class="segment-container">
+            <div class="segment-header">
+                <div>
+                    <span class="segment-title">
+                        Segment <span th:text="${segment.id}">0</span>
+                    </span>
+                    <span class="segment-status" th:classappend="${segment.on ? 'status-on' : 'status-off'}">
+                        <span th:text="${segment.on ? 'ON' : 'OFF'}">ON</span>
+                    </span>
+                </div>
+                <div class="segment-info">
+                    LEDs <span th:text="${segment.start}">0</span>-<span th:text="${segment.stop - 1}">29</span>
+                    (<span th:text="${segment.length}">30</span> LEDs)
+                    | Brightness: <span th:text="${segment.brightness}">128</span>
+                    | Effect: <span th:text="${segment.effect}">0</span>
+                </div>
+            </div>
+            <div class="led-strip">
+                <!-- Generate LEDs for this segment -->
+                <div class="led" th:each="i : ${#numbers.sequence(segment.start, segment.stop - 1)}"
+                     th:with="color=${segment.colors[0]}"
+                     th:style="'background-color: rgb(' + ${color[0]} + ',' + ${color[1]} + ',' + ${color[2]} + '); box-shadow: 0 0 15px rgba(' + ${color[0]} + ',' + ${color[1]} + ',' + ${color[2]} + ', 0.8);'"
+                     th:title="'LED ' + ${i}">
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <div>WLED Simulator for Home Assistant Testing</div>
+            <div class="last-update">
+                <span id="wsStatus" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: red; margin-right: 5px;"></span>
+                <span id="wsStatusText">Connecting...</span> |
+                Last Updated: <span id="lastUpdate">--</span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        let ws = null;
+        let reconnectAttempts = 0;
+        const maxReconnectDelay = 30000; // 30 seconds max
+
+        function updateTimestamp() {
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        }
+
+        function updateConnectionStatus(connected, text) {
+            const statusDot = document.getElementById('wsStatus');
+            const statusText = document.getElementById('wsStatusText');
+            statusDot.style.background = connected ? '#38ef7d' : '#ff4444';
+            statusText.textContent = text;
+        }
+
+        function updateLEDColors(state) {
+            if (!state || !state.seg) return;
+
+            state.seg.forEach(segment => {
+                const segmentId = segment.id;
+                const color = segment.col[0]; // Primary color [R, G, B]
+                const isOn = segment.on;
+
+                // Find all LED elements for this segment
+                const segmentContainer = document.querySelectorAll('.segment-container')[segmentId];
+                if (!segmentContainer) return;
+
+                const leds = segmentContainer.querySelectorAll('.led');
+                leds.forEach(led => {
+                    if (isOn) {
+                        const rgbColor = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+                        led.style.backgroundColor = rgbColor;
+                        led.style.boxShadow = `0 0 15px rgba(${color[0]}, ${color[1]}, ${color[2]}, 0.8)`;
+                    } else {
+                        led.style.backgroundColor = 'rgb(50, 50, 50)';
+                        led.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
+                    }
+                });
+
+                // Update segment header info
+                const segmentHeader = segmentContainer.querySelector('.segment-info');
+                if (segmentHeader) {
+                    const brightnessSpan = segmentHeader.querySelector('span:nth-of-type(4)');
+                    if (brightnessSpan) {
+                        brightnessSpan.textContent = segment.bri;
+                    }
+                }
+
+                // Update segment status badge
+                const statusBadge = segmentContainer.querySelector('.segment-status');
+                if (statusBadge) {
+                    statusBadge.textContent = isOn ? 'ON' : 'OFF';
+                    statusBadge.className = isOn ? 'segment-status status-on' : 'segment-status status-off';
+                }
+            });
+
+            // Update global power status
+            if (state.on !== undefined) {
+                const powerBadge = document.querySelector('.power-badge');
+                if (powerBadge) {
+                    powerBadge.textContent = state.on ? '● ON' : '○ OFF';
+                    powerBadge.className = state.on ? 'power-badge power-on' : 'power-badge power-off';
+                }
+            }
+
+            // Update global brightness
+            if (state.bri !== undefined) {
+                const brightnessDisplay = document.querySelector('.power-status span:nth-of-type(2) span');
+                if (brightnessDisplay) {
+                    brightnessDisplay.textContent = state.bri;
+                }
+            }
+
+            updateTimestamp();
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+            console.log('Connecting to WebSocket:', wsUrl);
+            updateConnectionStatus(false, 'Connecting...');
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = function() {
+                console.log('WebSocket connected');
+                updateConnectionStatus(true, 'Live Updates Active');
+                reconnectAttempts = 0;
+            };
+
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('Received WebSocket update:', data);
+                    if (data.state) {
+                        updateLEDColors(data.state);
+                    }
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error);
+                }
+            };
+
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                updateConnectionStatus(false, 'Connection Error');
+            };
+
+            ws.onclose = function(event) {
+                console.log('WebSocket closed:', event.code, event.reason);
+                updateConnectionStatus(false, 'Disconnected');
+
+                // Exponential backoff reconnection
+                const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay);
+                reconnectAttempts++;
+
+                console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts})...`);
+                updateConnectionStatus(false, `Reconnecting... (${reconnectAttempts})`);
+
+                setTimeout(connectWebSocket, delay);
+            };
+        }
+
+        // Initialize
+        updateTimestamp();
+        connectWebSocket();
+
+        // Fallback: Update timestamp every 2 seconds
+        setInterval(updateTimestamp, 2000);
+    </script>
+</body>
+</html>
