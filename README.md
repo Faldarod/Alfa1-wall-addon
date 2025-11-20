@@ -21,7 +21,7 @@ goals:
 constraints:
 - Use Java 25, Maven, Spring Boot 3.2+
 - Use Hexagonal Architecture
-- Use Embabel: https://docs.embabel.com/embabel-agent/guide/0.1.2-SNAPSHOT/
+- Use Embabel: 0.2.0
 - Stateless processing only.
 - No personally identifiable information (PII) should be logged or persisted or answered.
 - Docker Compose must start all components with one command.
