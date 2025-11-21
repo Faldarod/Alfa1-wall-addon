@@ -1,0 +1,19 @@
+name: "AlfaWall"
+version: "0.0.1"
+slug: "alfawall"
+description: "AI Presence Assistant for Home Assistant"
+arch:
+  - "aarch64"
+  - "amd64"
+  - "armhf"
+  - "armv7"
+  - "i386"
+boot: "auto"
+init: false
+ports:
+  "8080/tcp": 8080
+hassio_api: true
+homeassistant_api: true
+conversation:
+  alfawall:
+    url: "http://localhost:8080/api/conversation/process"
