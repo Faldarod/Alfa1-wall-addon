@@ -32,3 +32,5 @@ home-assistant/config/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+**/target/**
