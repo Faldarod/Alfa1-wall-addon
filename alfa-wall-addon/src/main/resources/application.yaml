@@ -23,7 +23,7 @@ embabel:
 # Environment-based configuration keys
 homeassistant:
   base-url: http://home-assistant:8123
-  access-token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIxM2YyODhmNWI2ZTE0ZWNmOTM1MDFiNmI0ZDg5NzkzOCIsImlhdCI6MTc2MzQ3OTMyNiwiZXhwIjoyMDc4ODM5MzI2fQ.ZcBHi92nGuxg6eUO0Gy2q7gRhm4I0-eaR3K5neIdNcQ
+  access-token: ${HOME_ASSISTANT_LONG_LIVED_ACCES_TOKEN}
 
 # Employee to WLED segment mapping
 employee-led:
