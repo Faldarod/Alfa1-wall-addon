@@ -1,17 +1,17 @@
-# UniFi Controller data directories
-unifi/unifi-data/
-unifi/unifi-db-data/
+# Maven build artifacts
+target/
+*.jar
+*.war
+*.ear
+**/target/**
 
 # IDE files
 .idea/
 *.iml
 .vscode/
-
-# Maven
-target/
-*.jar
-*.war
-*.ear
+*.swp
+*.swo
+*~
 
 # Logs
 *.log
@@ -20,17 +20,27 @@ target/
 .DS_Store
 Thumbs.db
 
-# Environment variables (contains secrets!)
+# Environment variables (contains API keys and secrets!)
 .env
 *.env
 
 # Build artifacts
 BOOT-INF/
 
-# Home Assistant runtime state and config
-home-assistant/config/
-
 # Claude Code local settings
 .claude/settings.local.json
 
-**/target/**
+# Compiled class files
+*.class
+
+# Package files
+*.zip
+*.tar.gz
+*.rar
+
+# Test output
+test-output/
+.coverage
+
+# Spring Boot DevTools
+.spring-boot-devtools.properties
