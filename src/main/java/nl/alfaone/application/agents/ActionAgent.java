@@ -112,6 +112,7 @@ public class ActionAgent {
             case CUSTOMER -> "#FFD700";  // Yellow - customer assignments
             case SCHEDULE -> "#0000FF";  // Blue - office schedule
             case PARKING -> "#FFA500";   // Orange - parking assignments
+            case EASTER_EGG -> "#FF00FF"; // Magenta - easter egg effects
             case GENERAL -> null;        // Use employee's default color
         };
     }

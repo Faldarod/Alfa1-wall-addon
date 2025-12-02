@@ -6,6 +6,7 @@ import com.embabel.agent.api.annotation.Condition;
 import com.embabel.agent.api.common.OperationContext;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
+import nl.alfaone.domain.EasterEggCommand;
 import nl.alfaone.domain.Employee;
 import nl.alfaone.domain.EmployeeSearchResult;
 import nl.alfaone.domain.QueryType;
@@ -84,6 +85,10 @@ public class EmployeeCollectorAgent {
                 String dateStr = query.toLowerCase().contains("tomorrow") ? "tomorrow" : "today";
                 yield filterByParking(dateStr);
             }
+            case EASTER_EGG -> {
+                log.info("Routing to easter egg command");
+                yield executeEasterEggCommand(query);
+            }
             case GENERAL -> {
                 log.info("Routing to semantic search");
                 yield searchEmployees(query);
@@ -101,6 +106,8 @@ public class EmployeeCollectorAgent {
      * Determine query type by evaluating all @Condition methods
      */
     private QueryType determineQueryType(String query) {
+        // Check easter eggs first (before other types to avoid false matches)
+        if (isEasterEggQuery(query)) return QueryType.EASTER_EGG;
         if (isPresenceQuery(query)) return QueryType.PRESENCE;
         if (isSkillQuery(query)) return QueryType.SKILLS;
         if (isCustomerQuery(query)) return QueryType.CUSTOMER;
@@ -243,6 +250,78 @@ public class EmployeeCollectorAgent {
     }
 
     // ==================== HELPER METHODS ====================
+
+    /**
+     * Execute easter egg command and return appropriate employee list
+     */
+    private List<Employee> executeEasterEggCommand(String query) {
+        EasterEggCommand command = parseEasterEggCommand(query);
+        log.info("Executing easter egg command: {}", command);
+
+        return switch (command) {
+            case RANDOM_PERSON -> {
+                // Select a random employee
+                List<Employee> allEmployees = getAllEmployees();
+                if (allEmployees.isEmpty()) {
+                    yield List.of();
+                }
+                int randomIndex = (int) (Math.random() * allEmployees.size());
+                yield List.of(allEmployees.get(randomIndex));
+            }
+            case ALL_OFF -> {
+                // Return empty list to turn off all LEDs
+                yield List.of();
+            }
+            case DISCO_MODE, RAINBOW, PULSE, WAVE, PARTY_MODE, ALL_ON -> {
+                // Return all employees for full-wall effects
+                yield getAllEmployees();
+            }
+            case UNKNOWN -> {
+                log.warn("Unknown easter egg command, returning all employees");
+                yield getAllEmployees();
+            }
+        };
+    }
+
+    /**
+     * Parse which specific easter egg command was requested
+     */
+    private EasterEggCommand parseEasterEggCommand(String query) {
+        if (query == null) return EasterEggCommand.UNKNOWN;
+        String lowerQuery = query.toLowerCase();
+
+        // Check for specific commands (order matters - most specific first)
+        if (lowerQuery.contains("disco")) {
+            return EasterEggCommand.DISCO_MODE;
+        }
+        if (lowerQuery.contains("party mode") || lowerQuery.contains("party")) {
+            return EasterEggCommand.PARTY_MODE;
+        }
+        if (lowerQuery.contains("random") && (lowerQuery.contains("person") || lowerQuery.contains("employee"))) {
+            return EasterEggCommand.RANDOM_PERSON;
+        }
+        if (lowerQuery.contains("rainbow")) {
+            return EasterEggCommand.RAINBOW;
+        }
+        if (lowerQuery.contains("pulse")) {
+            return EasterEggCommand.PULSE;
+        }
+        if (lowerQuery.contains("wave")) {
+            return EasterEggCommand.WAVE;
+        }
+        if (lowerQuery.contains("all") && lowerQuery.contains("off")) {
+            return EasterEggCommand.ALL_OFF;
+        }
+        if (lowerQuery.contains("all") && lowerQuery.contains("on")) {
+            return EasterEggCommand.ALL_ON;
+        }
+        if (lowerQuery.contains("light show") || lowerQuery.contains("surprise me")) {
+            // Default to party mode for "surprise" commands
+            return EasterEggCommand.PARTY_MODE;
+        }
+
+        return EasterEggCommand.UNKNOWN;
+    }
 
     /**
      * Extract customer name from query (simple keyword-based approach)
@@ -397,5 +476,26 @@ public class EmployeeCollectorAgent {
         if (query == null) return false;
         String lowerQuery = query.toLowerCase();
         return lowerQuery.contains("parking") || lowerQuery.contains("park") || lowerQuery.contains("spot");
+    }
+
+    /**
+     * Condition: Check if query is an easter egg command
+     * Detects special commands: disco, random, rainbow, pulse, wave, party, all on, all off
+     */
+    @Condition
+    public boolean isEasterEggQuery(String query) {
+        if (query == null) return false;
+        String lowerQuery = query.toLowerCase();
+
+        return lowerQuery.contains("disco") ||
+               lowerQuery.contains("party mode") ||
+               lowerQuery.contains("party") ||
+               (lowerQuery.contains("random") && (lowerQuery.contains("person") || lowerQuery.contains("employee"))) ||
+               lowerQuery.contains("rainbow") ||
+               lowerQuery.contains("pulse") ||
+               lowerQuery.contains("wave") ||
+               (lowerQuery.contains("all") && (lowerQuery.contains("on") || lowerQuery.contains("off"))) ||
+               lowerQuery.contains("light show") ||
+               lowerQuery.contains("surprise me");
     }
 }

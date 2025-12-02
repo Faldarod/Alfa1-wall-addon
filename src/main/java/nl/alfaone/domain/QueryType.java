@@ -39,5 +39,12 @@ public enum QueryType {
      * General/semantic search query
      * LED Color: Employee's default color
      */
-    GENERAL
+    GENERAL,
+
+    /**
+     * Easter egg / special effects command
+     * LED Color: Various special effects
+     * Examples: disco mode, random person, rainbow, pulse
+     */
+    EASTER_EGG
 }
