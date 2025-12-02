@@ -135,8 +135,8 @@ class ConversationApiIntegrationTest {
     }
 
     @Test
-    void testConversationApi_PII_Detection() throws Exception {
-        // Given: Query with PII (email address)
+    void testConversationApi_PII_Sanitization_Email() throws Exception {
+        // Given: Query with non-critical PII (email address - should be sanitized but NOT blocked)
         String requestBody = """
             {
               "text": "Find employee with email john.doe@example.com",
@@ -159,6 +159,90 @@ class ConversationApiIntegrationTest {
 
         // Note: PrivacyOfficerAgent sanitizes PII internally but doesn't mention it in user-facing response
         // The sanitized query is processed normally and returns employee search results
+    }
+
+    @Test
+    void testConversationApi_GDPR_Violation_CreditCard() throws Exception {
+        // Given: Query with CRITICAL PII (credit card - should be BLOCKED)
+        String requestBody = """
+            {
+              "text": "Find employee with credit card 4532-1234-5678-9010",
+              "language": "en"
+            }
+            """;
+
+        // When: Call conversation API
+        MvcResult result = mockMvc.perform(post("/api/conversation/process")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response.speech.plain.speech").exists())
+                .andReturn();
+
+        // Then: Response should indicate the query was blocked due to privacy violation
+        String responseBody = result.getResponse().getContentAsString();
+        assertTrue(responseBody.contains("privacy") ||
+                   responseBody.contains("cannot") ||
+                   responseBody.contains("blocked") ||
+                   responseBody.contains("not allowed") ||
+                   responseBody.contains("GDPR"),
+                "Response should indicate query was blocked for privacy reasons");
+    }
+
+    @Test
+    void testConversationApi_GDPR_Violation_SSN() throws Exception {
+        // Given: Query with CRITICAL PII (SSN - should be BLOCKED)
+        String requestBody = """
+            {
+              "text": "Who has SSN 123-45-6789?",
+              "language": "en"
+            }
+            """;
+
+        // When: Call conversation API
+        MvcResult result = mockMvc.perform(post("/api/conversation/process")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response.speech.plain.speech").exists())
+                .andReturn();
+
+        // Then: Response should indicate the query was blocked due to privacy violation
+        String responseBody = result.getResponse().getContentAsString();
+        assertTrue(responseBody.contains("privacy") ||
+                   responseBody.contains("cannot") ||
+                   responseBody.contains("blocked") ||
+                   responseBody.contains("not allowed") ||
+                   responseBody.contains("GDPR"),
+                "Response should indicate query was blocked for privacy reasons");
+    }
+
+    @Test
+    void testConversationApi_GDPR_Violation_BSN() throws Exception {
+        // Given: Query with CRITICAL PII (BSN - Dutch social security number - should be BLOCKED)
+        String requestBody = """
+            {
+              "text": "Find employee with BSN 123456789",
+              "language": "en"
+            }
+            """;
+
+        // When: Call conversation API
+        MvcResult result = mockMvc.perform(post("/api/conversation/process")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response.speech.plain.speech").exists())
+                .andReturn();
+
+        // Then: Response should indicate the query was blocked due to privacy violation
+        String responseBody = result.getResponse().getContentAsString();
+        assertTrue(responseBody.contains("privacy") ||
+                   responseBody.contains("cannot") ||
+                   responseBody.contains("blocked") ||
+                   responseBody.contains("not allowed") ||
+                   responseBody.contains("GDPR"),
+                "Response should indicate query was blocked for privacy reasons");
     }
 
     @Test

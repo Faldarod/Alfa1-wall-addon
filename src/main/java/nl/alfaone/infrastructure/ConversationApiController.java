@@ -71,6 +71,16 @@ public class ConversationApiController {
             SanitizedQuery sanitizedQuery = privacyOfficerAgent.sanitizeQuery(queryInput, operationContext);
             log.info("Privacy check complete - hasCriticalViolation: {}", sanitizedQuery.hasCriticalViolation());
 
+            // GDPR compliance: Block queries with critical PII (credit cards, SSN/BSN)
+            if (sanitizedQuery.shouldBlock()) {
+                log.warn("Query blocked due to critical PII violation: {}", queryText);
+                return createErrorResponse(
+                    "I cannot process this query as it contains sensitive personal information (credit card numbers, social security numbers, etc.). " +
+                    "Please rephrase your query without including such sensitive data.",
+                    request.getConversationId()
+                );
+            }
+
             // 2. ORIENT: Collect matching employees
             EmployeeSearchResult searchResult = employeeCollectorAgent.collectEmployees(sanitizedQuery, operationContext);
             log.info("Employee collection complete - found {} employees, query type: {}",
