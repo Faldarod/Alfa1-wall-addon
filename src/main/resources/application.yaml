@@ -4,12 +4,12 @@
 spring:
   ai:
     openai:
-      api-key: ${OPENAI_API_KEY:not-set}
+      api-key: dummy-api-key
       base-url: ${SPRING_AI_OPENAI_BASE_URL:https://openrouter.ai/api/v1}
       chat:
         options:
           model: ${SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL:openai/gpt-4o-mini}
-          temperature: ${SPRING_AI_OPENAI_CHAT_OPTIONS_TEMPERATURE:0.7}
+          temperature: ${SPRING_AI_OPENAI_CHAT_OPTIONS_TEMPERATURE:0.3}
 
 # Embabel Model Configuration (NOTE: embabel.models NOT embabel.agent!)
 embabel:
@@ -23,7 +23,7 @@ embabel:
 # Environment-based configuration keys
 homeassistant:
   base-url: http://home-assistant:8123
-  access-token: ${HOME_ASSISTANT_LONG_LIVED_ACCES_TOKEN}
+  access-token: assistant-token
 
 # Employee to WLED segment mapping
 employee-led:
@@ -38,7 +38,7 @@ employee-led:
       brightness: 200
     "Alice Smith":
       entity-id: light.wled_segment_2
-      color: "#FF00FF"  # Magenta
+      color: "#FF00FF"  #
       brightness: 220
     "Bob Johnson":
       entity-id: light.wled_segment_3
@@ -248,3 +248,25 @@ employee-data:
         friday: true
         saturday: false
         sunday: false
+# MCP (Model Context Protocol) Server Configuration
+# Enables dynamic tool discovery from MCP servers
+mcp:
+  enabled: false  # Set to true to enable MCP integration
+  servers:
+    # Example MCP server configuration
+    - name: employee-search
+      base-url: http://localhost:9000
+      enabled: true
+      timeout-seconds: 30
+      auth:
+        token: ${MCP_EMPLOYEE_SEARCH_TOKEN:}
+        header: Authorization
+
+    # Additional MCP servers can be added here
+    - name: calendar-service
+      base-url: http://localhost:9001
+      enabled: false
+      timeout-seconds: 15
+      auth:
+        token: ${MCP_CALENDAR_TOKEN:}
+        header: Authorization
