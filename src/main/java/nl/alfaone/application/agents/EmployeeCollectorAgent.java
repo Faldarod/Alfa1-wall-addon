@@ -4,7 +4,9 @@ import com.embabel.agent.api.annotation.Action;
 import com.embabel.agent.api.annotation.Agent;
 import com.embabel.agent.api.annotation.Condition;
 import com.embabel.agent.api.common.OperationContext;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import nl.alfaone.domain.EasterEggCommand;
 import nl.alfaone.domain.Employee;
@@ -12,11 +14,15 @@ import nl.alfaone.domain.EmployeeSearchResult;
 import nl.alfaone.domain.QueryType;
 import nl.alfaone.domain.SanitizedQuery;
 import nl.alfaone.infrastructure.repository.EmployeeRepository;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Agent(description = "Collects employees from various data sources based on query context. " +
@@ -26,9 +32,21 @@ import java.util.stream.Collectors;
 public class EmployeeCollectorAgent {
 
     private final EmployeeRepository employeeRepository;
+    private final ChatClient.Builder chatClientBuilder;  // Optional - may be null if ChatModel not available
 
-    public EmployeeCollectorAgent(EmployeeRepository employeeRepository) {
+    /**
+     * Thread-local storage for tracking which tools were used by LLM
+     * Used to determine QueryType for multi-tool queries
+     */
+    private final ThreadLocal<Set<String>> toolsUsedThreadLocal =
+        ThreadLocal.withInitial(HashSet::new);
+
+    @Autowired
+    public EmployeeCollectorAgent(
+            EmployeeRepository employeeRepository,
+            @Autowired(required = false) ChatClient.Builder chatClientBuilder) {
         this.employeeRepository = employeeRepository;
+        this.chatClientBuilder = chatClientBuilder;
     }
 
     /**
@@ -57,6 +75,34 @@ public class EmployeeCollectorAgent {
 
         log.info("Collecting employees for query: '{}'", query);
 
+        // NEW: Try LLM tool selection first
+        try {
+            // Clear previous tool usage
+            toolsUsedThreadLocal.get().clear();
+
+            // LLM tool selection
+            List<Employee> employees = llmToolSelection(query);
+
+            if (!employees.isEmpty()) {
+                log.info("LLM tool selection succeeded: {} employees", employees.size());
+
+                // Determine QueryType from tools used
+                QueryType type = determineQueryTypeFromTools(toolsUsedThreadLocal.get());
+                log.info("QueryType determined from tools: {}", type);
+
+                return new EmployeeSearchResult(query, employees, type);
+            }
+
+            log.warn("LLM returned empty, using keyword routing fallback");
+
+        } catch (Exception e) {
+            log.warn("LLM failed: {}, using keyword routing fallback", e.getMessage());
+        } finally {
+            // Clean up ThreadLocal
+            toolsUsedThreadLocal.remove();
+        }
+
+        // EXISTING KEYWORD ROUTING (unchanged - serves as fallback)
         // Determine query type using @Condition methods
         QueryType type = determineQueryType(query);
         log.info("Query type determined: {}", type);
@@ -117,6 +163,24 @@ public class EmployeeCollectorAgent {
     }
 
     /**
+     * Determine query type based on tools used by LLM
+     * Priority order ensures most specific type wins for LED color
+     */
+    private QueryType determineQueryTypeFromTools(Set<String> toolsUsed) {
+        log.debug("Determining QueryType from tools: {}", toolsUsed);
+
+        // Priority order (most specific wins for LED color):
+        if (toolsUsed.contains("getCurrentPresence")) return QueryType.PRESENCE;
+        if (toolsUsed.contains("filterBySchedule")) return QueryType.SCHEDULE;
+        if (toolsUsed.contains("filterBySkill")) return QueryType.SKILLS;
+        if (toolsUsed.contains("filterByCustomer")) return QueryType.CUSTOMER;
+        if (toolsUsed.contains("filterByParking")) return QueryType.PARKING;
+        if (toolsUsed.contains("searchEmployees")) return QueryType.GENERAL;
+
+        return QueryType.GENERAL;
+    }
+
+    /**
      * Extract skill from query and search by skill
      */
     private List<Employee> getEmployeesBySkillFromQuery(String query) {
@@ -147,6 +211,150 @@ public class EmployeeCollectorAgent {
         return searchEmployees(query);
     }
 
+    /**
+     * LLM-driven tool selection for multi-criteria queries
+     * Uses ChatClient with registered @Tool methods to intelligently chain operations
+     */
+    private List<Employee> llmToolSelection(String query) {
+        log.info("LLM tool selection called for: '{}'", query);
+
+        // Skip LLM if ChatClient.Builder not available (e.g., in tests or when ChatModel not configured)
+        if (chatClientBuilder == null) {
+            log.debug("ChatClient.Builder not available, skipping LLM tool selection");
+            return List.of(); // Empty = fallback to keyword routing
+        }
+
+        try {
+            // Build prompt
+            String prompt = buildPrompt(query);
+
+            // Call LLM with tool registration
+            // Note: Spring AI @Tool methods are automatically discovered and available
+            // The chatClient builder already has access to @Tool methods in the Spring context
+            String response = chatClientBuilder
+                .build()
+                .prompt(prompt)
+                .call()
+                .content();
+
+            log.debug("LLM response: {}", response);
+
+            // Parse response
+            List<Employee> employees = parseEmployeeList(response);
+            log.info("LLM found {} employees", employees.size());
+
+            return employees;
+
+        } catch (Exception e) {
+            log.error("LLM tool selection error", e);
+            throw new LLMToolSelectionException("LLM failed", e);
+        }
+    }
+
+    /**
+     * Build prompt for LLM tool selection
+     */
+    private String buildPrompt(String userQuery) {
+        return """
+            You are an employee search assistant with access to tools.
+
+            AVAILABLE TOOLS:
+            - getCurrentPresence(): Employees currently in office (based on device trackers)
+            - filterBySkill(skill): Employees with exact skill (e.g., "Java", "Python", "React")
+            - filterByCustomer(name): Employees working for customer/company
+            - filterBySchedule(date): Scheduled employees ("today", "tomorrow", or ISO date)
+            - filterByParking(date): Employees with parking spot on date
+            - searchEmployees(query): Semantic search across employee data
+            - intersectEmployeeLists(lists): AND logic - employees in ALL lists
+            - combineEmployeeLists(lists): OR logic - employees in ANY list
+            - getAllEmployees(): Get all employees
+
+            MULTI-CRITERIA QUERIES (use intersectEmployeeLists for AND logic):
+
+            Example: "Java developers coming today"
+              1. Call filterBySkill("Java")
+              2. Call filterBySchedule("today")
+              3. Call intersectEmployeeLists([result1, result2])
+
+            Example: "Python developers in office now"
+              1. Call filterBySkill("Python")
+              2. Call getCurrentPresence()
+              3. Call intersectEmployeeLists([result1, result2])
+
+            OR QUERIES (use combineEmployeeLists for OR logic):
+
+            Example: "Java or Python developers"
+              1. Call filterBySkill("Java")
+              2. Call filterBySkill("Python")
+              3. Call combineEmployeeLists([result1, result2])
+
+            IMPORTANT RULES:
+            - Always use exact skill names from query
+            - For presence queries, use getCurrentPresence() for "here now" or "in office"
+            - For schedule queries, use filterBySchedule() for "coming today/tomorrow"
+            - For multi-criteria, ALWAYS use intersectEmployeeLists() or combineEmployeeLists()
+            - Return ONLY a JSON array of employee names
+
+            USER QUERY: "%s"
+
+            Return format (JSON array only):
+            ["Employee Name 1", "Employee Name 2"]
+
+            If no matches, return:
+            []
+            """.formatted(userQuery);
+    }
+
+    /**
+     * Parse LLM response into employee list
+     */
+    private List<Employee> parseEmployeeList(String llmResponse) {
+        // Clean markdown formatting
+        String cleaned = llmResponse.trim()
+            .replaceAll("```json\\s*", "")
+            .replaceAll("```\\s*", "")
+            .replaceAll("^\\[", "[")
+            .replaceAll("\\]$", "]");
+
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            List<String> names = mapper.readValue(cleaned,
+                new TypeReference<List<String>>() {});
+
+            log.debug("Parsed employee names: {}", names);
+
+            // Convert names to Employee objects
+            List<Employee> employees = employeeRepository.findAll().stream()
+                .filter(emp -> names.stream()
+                    .anyMatch(name -> emp.getName().equalsIgnoreCase(name)))
+                .collect(Collectors.toList());
+
+            if (employees.size() != names.size()) {
+                log.warn("LLM returned {} names but only {} found in repository",
+                    names.size(), employees.size());
+            }
+
+            return employees;
+
+        } catch (JsonProcessingException e) {
+            log.error("Failed to parse LLM response: {}", cleaned, e);
+            throw new LLMToolSelectionException("Invalid JSON from LLM", e);
+        }
+    }
+
+    /**
+     * Exception thrown when LLM tool selection fails
+     */
+    private static class LLMToolSelectionException extends RuntimeException {
+        public LLMToolSelectionException(String message, Throwable cause) {
+            super(message, cause);
+        }
+
+        public LLMToolSelectionException(String message) {
+            super(message);
+        }
+    }
+
     // ==================== TOOLS (LLM can call these methods) ====================
 
     @Tool(description = "Search employee database using semantic text search. " +
@@ -154,6 +362,7 @@ public class EmployeeCollectorAgent {
           "Examples: 'backend experts', 'cloud specialists', 'experienced developers'")
     public List<Employee> searchEmployees(String searchQuery) {
         log.info("Tool called: searchEmployees('{}')", searchQuery);
+        toolsUsedThreadLocal.get().add("searchEmployees");
         return employeeRepository.semanticSearch(searchQuery);
     }
 
@@ -161,6 +370,7 @@ public class EmployeeCollectorAgent {
           "Use for queries like: 'who is here', 'who is in the office', 'current presence', 'who is present now'")
     public List<Employee> getCurrentPresence() {
         log.info("Tool called: getCurrentPresence()");
+        toolsUsedThreadLocal.get().add("getCurrentPresence");
 
         List<Employee> allEmployees = employeeRepository.findAll();
         return employeeRepository.enrichWithCurrentPresence(allEmployees).stream()
@@ -173,6 +383,7 @@ public class EmployeeCollectorAgent {
           "Skill parameter should be exact like 'Java', 'Python', 'React', 'Docker', 'Kubernetes'")
     public List<Employee> filterBySkill(String skill) {
         log.info("Tool called: filterBySkill('{}')", skill);
+        toolsUsedThreadLocal.get().add("filterBySkill");
         return employeeRepository.findBySkill(skill);
     }
 
@@ -181,6 +392,7 @@ public class EmployeeCollectorAgent {
           "Examples: 'works for ACME', 'working for TechCorp', 'assigned to customer X'")
     public List<Employee> filterByCustomer(String customerName) {
         log.info("Tool called: filterByCustomer('{}')", customerName);
+        toolsUsedThreadLocal.get().add("filterByCustomer");
         return employeeRepository.findByCustomer(customerName);
     }
 
@@ -190,6 +402,7 @@ public class EmployeeCollectorAgent {
           "Examples: 'who is coming today', 'scheduled for tomorrow'")
     public List<Employee> filterBySchedule(String dateString) {
         log.info("Tool called: filterBySchedule('{}')", dateString);
+        toolsUsedThreadLocal.get().add("filterBySchedule");
 
         LocalDate date = parseDate(dateString);
         return employeeRepository.findScheduledFor(date);
@@ -201,6 +414,7 @@ public class EmployeeCollectorAgent {
           "Examples: 'who has parking today', 'parking spot tomorrow'")
     public List<Employee> filterByParking(String dateString) {
         log.info("Tool called: filterByParking('{}')", dateString);
+        toolsUsedThreadLocal.get().add("filterByParking");
 
         LocalDate date = parseDate(dateString);
         return employeeRepository.findWithParkingOn(date);
@@ -210,6 +424,7 @@ public class EmployeeCollectorAgent {
           "Use for queries like: 'show all employees', 'list everyone', 'all people'")
     public List<Employee> getAllEmployees() {
         log.info("Tool called: getAllEmployees()");
+        toolsUsedThreadLocal.get().add("getAllEmployees");
         return employeeRepository.findAll();
     }
 
@@ -218,6 +433,7 @@ public class EmployeeCollectorAgent {
           "Example: To find 'Java developers coming today', intersect filterBySkill('Java') and filterBySchedule('today')")
     public List<Employee> intersectEmployeeLists(List<List<Employee>> lists) {
         log.info("Tool called: intersectEmployeeLists() with {} lists", lists.size());
+        toolsUsedThreadLocal.get().add("intersectEmployeeLists");
 
         if (lists == null || lists.isEmpty()) {
             return List.of();
@@ -238,6 +454,7 @@ public class EmployeeCollectorAgent {
           "Example: 'Java or Python developers' would combine filterBySkill('Java') and filterBySkill('Python')")
     public List<Employee> combineEmployeeLists(List<List<Employee>> lists) {
         log.info("Tool called: combineEmployeeLists() with {} lists", lists.size());
+        toolsUsedThreadLocal.get().add("combineEmployeeLists");
 
         if (lists == null || lists.isEmpty()) {
             return List.of();
