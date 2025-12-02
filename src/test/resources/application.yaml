@@ -7,3 +7,95 @@ homeassistant:
 mcp:
   enabled: false  # Disabled by default in tests
   servers: []
+
+# LED mappings for test employees
+employee-led:
+  mappings:
+    "John Doe":
+      entity-id: light.wled_segment_0
+      color: "#00FF00"
+      brightness: 255
+    "Sarah Chen":
+      entity-id: light.wled_segment_1
+      color: "#0000FF"
+      brightness: 255
+    "Mike Johnson":
+      entity-id: light.wled_segment_2
+      color: "#FF0000"
+      brightness: 255
+
+# Test employee data
+employee-data:
+  employees:
+    - id: john-doe
+      name: John Doe
+      email: john.doe@alfaone.nl
+      background: "Senior Java developer"
+      device-trackers:
+        - device_tracker.john_phone
+      led-segment:
+        entity-id: light.wled_segment_0
+        color: "#00FF00"
+        brightness: 255
+      skills:
+        - Java
+        - Spring Boot
+      customer: ACME Corp
+      parking-space: A1
+      schedule:
+        monday: true
+        tuesday: true
+        wednesday: true
+        thursday: true
+        friday: true
+        saturday: false
+        sunday: false
+
+    - id: sarah-chen
+      name: Sarah Chen
+      email: sarah.chen@alfaone.nl
+      background: "Python expert"
+      device-trackers:
+        - device_tracker.sarah_phone
+      led-segment:
+        entity-id: light.wled_segment_1
+        color: "#0000FF"
+        brightness: 255
+      skills:
+        - Python
+        - Django
+      customer: ACME Corp
+      parking-space: B2
+      schedule:
+        monday: true
+        tuesday: true
+        wednesday: true
+        thursday: false
+        friday: false
+        saturday: false
+        sunday: false
+
+    - id: mike-johnson
+      name: Mike Johnson
+      email: mike.johnson@alfaone.nl
+      background: "Full-stack developer"
+      device-trackers:
+        - device_tracker.mike_phone
+      led-segment:
+        entity-id: light.wled_segment_2
+        color: "#FF0000"
+        brightness: 255
+      skills:
+        - Java
+        - JavaScript
+        - React
+      customer: TechCorp
+      parking-space: C3
+      schedule:
+        monday: true
+        tuesday: true
+        wednesday: true
+        thursday: true
+        friday: true
+        saturday: false
+        sunday: false
