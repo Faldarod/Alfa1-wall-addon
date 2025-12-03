@@ -13,6 +13,7 @@ import nl.alfaone.domain.Employee;
 import nl.alfaone.domain.EmployeeSearchResult;
 import nl.alfaone.domain.QueryType;
 import nl.alfaone.domain.SanitizedQuery;
+import nl.alfaone.infrastructure.config.LlmToolSelectionProperties;
 import nl.alfaone.infrastructure.repository.EmployeeRepository;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.tool.annotation.Tool;
@@ -33,6 +34,7 @@ public class EmployeeCollectorAgent {
 
     private final EmployeeRepository employeeRepository;
     private final ChatClient.Builder chatClientBuilder;  // Optional - may be null if ChatModel not available
+    private final LlmToolSelectionProperties llmConfig;
 
     /**
      * Thread-local storage for tracking which tools were used by LLM
@@ -44,9 +46,11 @@ public class EmployeeCollectorAgent {
     @Autowired
     public EmployeeCollectorAgent(
             EmployeeRepository employeeRepository,
-            @Autowired(required = false) ChatClient.Builder chatClientBuilder) {
+            @Autowired(required = false) ChatClient.Builder chatClientBuilder,
+            LlmToolSelectionProperties llmConfig) {
         this.employeeRepository = employeeRepository;
         this.chatClientBuilder = chatClientBuilder;
+        this.llmConfig = llmConfig;
     }
 
     /**
@@ -75,31 +79,38 @@ public class EmployeeCollectorAgent {
 
         log.info("Collecting employees for query: '{}'", query);
 
-        // NEW: Try LLM tool selection first
-        try {
-            // Clear previous tool usage
-            toolsUsedThreadLocal.get().clear();
+        // NEW: Try LLM tool selection first (if enabled)
+        if (llmConfig.isEnabled()) {
+            try {
+                // Clear previous tool usage
+                toolsUsedThreadLocal.get().clear();
 
-            // LLM tool selection
-            List<Employee> employees = llmToolSelection(query);
+                // LLM tool selection
+                List<Employee> employees = llmToolSelection(query);
 
-            if (!employees.isEmpty()) {
-                log.info("LLM tool selection succeeded: {} employees", employees.size());
+                if (!employees.isEmpty()) {
+                    log.info("LLM tool selection succeeded: {} employees", employees.size());
 
-                // Determine QueryType from tools used
-                QueryType type = determineQueryTypeFromTools(toolsUsedThreadLocal.get());
-                log.info("QueryType determined from tools: {}", type);
+                    // Determine QueryType from tools used
+                    QueryType type = determineQueryTypeFromTools(toolsUsedThreadLocal.get());
+                    log.info("QueryType determined from tools: {}", type);
 
-                return new EmployeeSearchResult(query, employees, type);
+                    return new EmployeeSearchResult(query, employees, type);
+                }
+
+                log.warn("LLM returned empty, using keyword routing fallback");
+
+            } catch (Exception e) {
+                if (!llmConfig.isFallbackOnError()) {
+                    throw e; // Fail fast if fallback disabled
+                }
+                log.warn("LLM failed: {}, using keyword routing fallback", e.getMessage());
+            } finally {
+                // Clean up ThreadLocal
+                toolsUsedThreadLocal.remove();
             }
-
-            log.warn("LLM returned empty, using keyword routing fallback");
-
-        } catch (Exception e) {
-            log.warn("LLM failed: {}, using keyword routing fallback", e.getMessage());
-        } finally {
-            // Clean up ThreadLocal
-            toolsUsedThreadLocal.remove();
+        } else {
+            log.debug("LLM tool selection disabled, using keyword routing");
         }
 
         // EXISTING KEYWORD ROUTING (unchanged - serves as fallback)
@@ -216,6 +227,7 @@ public class EmployeeCollectorAgent {
      * Uses ChatClient with registered @Tool methods to intelligently chain operations
      */
     private List<Employee> llmToolSelection(String query) {
+        long startTime = System.currentTimeMillis();
         log.info("LLM tool selection called for: '{}'", query);
 
         // Skip LLM if ChatClient.Builder not available (e.g., in tests or when ChatModel not configured)
@@ -241,12 +253,21 @@ public class EmployeeCollectorAgent {
 
             // Parse response
             List<Employee> employees = parseEmployeeList(response);
-            log.info("LLM found {} employees", employees.size());
+
+            // Performance logging
+            long duration = System.currentTimeMillis() - startTime;
+            if (llmConfig.isLogPerformance()) {
+                log.info("LLM completed in {}ms, found {} employees, tools used: {}",
+                    duration, employees.size(), toolsUsedThreadLocal.get());
+            } else {
+                log.info("LLM found {} employees", employees.size());
+            }
 
             return employees;
 
         } catch (Exception e) {
-            log.error("LLM tool selection error", e);
+            long duration = System.currentTimeMillis() - startTime;
+            log.error("LLM tool selection error after {}ms: {}", duration, e.getMessage(), e);
             throw new LLMToolSelectionException("LLM failed", e);
         }
     }

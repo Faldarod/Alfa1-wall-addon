@@ -270,3 +270,19 @@ mcp:
       auth:
         token: ${MCP_CALENDAR_TOKEN:}
         header: Authorization
+
+# LLM Tool Selection Configuration
+# Controls LLM-driven multi-criteria query handling
+alfawall:
+  llm-tool-selection:
+    # Enable LLM tool selection (set to false to rollback to keyword routing only)
+    enabled: ${ALFAWALL_LLM_TOOL_SELECTION_ENABLED:true}
+
+    # Timeout for LLM calls in milliseconds
+    timeout-ms: ${ALFAWALL_LLM_TOOL_SELECTION_TIMEOUT_MS:5000}
+
+    # Fall back to keyword routing on LLM errors (recommended: true)
+    fallback-on-error: ${ALFAWALL_LLM_TOOL_SELECTION_FALLBACK_ON_ERROR:true}
+
+    # Log performance metrics (execution time, tools used)
+    log-performance: ${ALFAWALL_LLM_TOOL_SELECTION_LOG_PERFORMANCE:true}
