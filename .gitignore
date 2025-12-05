@@ -1,3 +1,10 @@
+# =============================================================================
+# AlfaWall Conversation API - Git Ignore
+# =============================================================================
+# This template repository encourages developers to customize application.yaml
+# Therefore, application.yaml is NOT ignored (unlike typical Spring Boot projects)
+# =============================================================================
+
 # Maven build artifacts
 target/
 *.jar
@@ -23,6 +30,12 @@ Thumbs.db
 # Environment variables (contains API keys and secrets!)
 .env
 *.env
+
+# IMPORTANT: application.yaml is NOT ignored
+# Developers should customize it from application-example.yaml
+# Keep example files in git for reference
+!application-example.yaml
+!.env.example
 
 # Build artifacts
 BOOT-INF/

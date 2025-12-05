@@ -1,10 +1,16 @@
 # CLAUDE.md - AlfaWall Addon Development Guide
 
+> **⚠️ TEMPLATE REPOSITORY NOTICE**
+>
+> This is a **template repository** for building AI-powered conversation APIs. The example employee data (Jane Developer, John Designer) should be replaced with your organization's actual data. See `TEMPLATE.md` for comprehensive customization instructions.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with the AlfaWall addon source code.
 
 ## Repository Purpose
 
-This repository contains the **AlfaWall Addon** - a Spring Boot application that acts as an AI-powered presence assistant for Home Assistant. The addon processes natural language queries about employees and controls WLED LED devices.
+This repository contains the **AlfaWall Addon** - a Spring Boot application template that acts as an AI-powered presence assistant for Home Assistant. The addon processes natural language queries about employees and controls WLED LED devices.
+
+**This is a template** - developers should customize employee data, LED mappings, and business logic for their specific use case.
 
 ## Quick Start Commands
 
@@ -35,7 +41,7 @@ java -jar target/alfa-wall-addon-0.0.1-SNAPSHOT.jar
 mvn test
 
 # Run specific test
-mvn test -Dtest=IntentAgentTest
+mvn test -Dtest=AlfaWallApplicationTest
 
 # Run with coverage
 mvn clean test jacoco:report
@@ -97,7 +103,7 @@ The codebase follows hexagonal architecture principles:
 
 **Domain Layer** (`nl.alfaone.domain`)
 - Core business logic, independent of frameworks
-- Entities: Employee, Presence, Intent, AgentContext
+- Entities: Employee, Presence, QueryType
 - Value objects: QueryInput, SanitizedQuery, PrivacyViolation
 - Domain services: EmployeeSearchResult, VisualizationResult
 
@@ -292,9 +298,12 @@ Edit `src/main/resources/application.yaml`:
 ```yaml
 employee-data:
   employees:
-    - name: "John Doe"
+    - name: "Jane Developer"
       skills: ["Java", "Spring Boot"]
-      customer: "ACME Corp"
+      customers:
+        - customer-name: "ACME Corp"
+          role: "Lead Developer"
+          percentage: 80
       # ... etc
 ```
 
